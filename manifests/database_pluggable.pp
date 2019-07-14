@@ -33,25 +33,26 @@
 # @param pdb_admin_password the pluggable DB admin password
 # @param create_user_tablespace create user tablespace for the pluggable DB
 #
-define oradb::database_pluggable(
-  Enum['present', 'absent'] $ensure = 'present',
-  Enum['12.1', '12.2', '18.3'] $version = lookup('oradb::version'),
-  String $oracle_base               = undef,
-  String $oracle_home_dir           = undef,
-  String $user                      = lookup('oradb::user'),
-  String $group                     = lookup('oradb::group'),
-  String $source_db                 = undef,
-  String $pdb_name                  = undef,
-  String $pdb_datafile_destination  = undef,
-  String $pdb_admin_username        = 'pdb_adm',
-  String $pdb_admin_password        = undef,
-  Boolean $create_user_tablespace   = true,
-  Boolean $log_output               = false,
-){
+define oradb::database_pluggable (
+  Enum['present', 'absent'] $ensure                             = 'present',
+  Enum['12.1', '12.2', '18.3', '19.1', '19.2', '19.3'] $version = lookup('oradb::version'),
+  String $oracle_base                                           = undef,
+  String $oracle_home_dir                                       = undef,
+  String $user                                                  = lookup('oradb::user'),
+  String $group                                                 = lookup('oradb::group'),
+  String $source_db                                             = undef,
+  String $pdb_name                                              = undef,
+  String $pdb_datafile_destination                              = undef,
+  String $pdb_admin_username                                    = 'pdb_adm',
+  String $pdb_admin_password                                    = undef,
+  Boolean $create_user_tablespace                               = true,
+  Boolean $log_output                                           = false,
+) {
   $exec_path = lookup('oradb::exec_path')
 
   if ( $ensure == 'present') {
-    $command = "${oracle_home_dir}/bin/dbca -silent -createPluggableDatabase -sourceDB ${source_db} -pdbName ${pdb_name} -createPDBFrom DEFAULT -pdbAdminUserName ${pdb_admin_username} -pdbAdminPassword ${pdb_admin_password} -pdbDatafileDestination ${pdb_datafile_destination} -createUserTableSpace ${create_user_tablespace}"
+    $command = "${oracle_home_dir}/bin/dbca -silent -createPluggableDatabase -sourceDB ${source_db} -pdbName ${pdb_name} -createPDBFrom DEFAULT -pdbAdminUserName ${pdb_admin_username}
+       -pdbAdminPassword ${pdb_admin_password} -pdbDatafileDestination ${pdb_datafile_destination} -createUserTableSpace ${create_user_tablespace}"
 
     exec { "dbca pdb execute ${title}":
       command   => $command,

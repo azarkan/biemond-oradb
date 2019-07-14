@@ -93,247 +93,251 @@
 # @param cluster_nodes
 # @param container_database configure as a 12c container database which allows plugleable databases
 #
-define oradb::database(
-  String $oracle_base                                             = undef,
-  String $oracle_home                                             = undef,
-  Enum['11.2', '12.1', '12.2', '18.3'] $version                   = lookup('oradb::version'),
-  String $user                                                    = lookup('oradb::user'),
-  String $group                                                   = lookup('oradb::group'),
-  String $download_dir                                            = lookup('oradb::download_dir'),
-  Enum['create','delete'] $action                                 = lookup('oradb::database::action'),
-  Optional[String] $template                                      = undef,
-  Optional[String] $template_seeded                               = undef,
-  Optional[Hash] $template_variables                              = undef, # for dbt template
-  String $db_name                                                 = lookup('oradb::database_name'),
-  Optional[String] $db_domain                                     = undef,
-  Integer $db_port                                                = lookup('oradb::listener_port'),
-  String $sys_password                                            = lookup('oradb::default::password'),
-  String $system_password                                         = lookup('oradb::default::password'),
-  Optional[String] $data_file_destination                         = undef,
-  Optional[String] $recovery_area_destination                     = undef,
-  String $character_set                                           = lookup('oradb::database::character_set'),
-  String $nationalcharacter_set                                   = lookup('oradb::database::nationalcharacter_set'),
-  Optional[Hash] $init_params                                     = undef,
-  String $sample_schema                                           = lookup('oradb::database::sample_schema'),
-  Integer $memory_percentage                                      = lookup('oradb::database::memory_percentage'),
-  Integer $memory_total                                           = lookup('oradb::database::memory_total'),
-  Enum['MULTIPURPOSE', 'DATA_WAREHOUSING', 'OLTP'] $database_type = lookup('oradb::database::database_type'),
-  Enum['NONE', 'CENTRAL', 'LOCAL', 'ALL'] $em_configuration       = lookup('oradb::database::em_configuration'),
-  Optional[Enum['FS', 'CFS', 'ASM']] $storage_type                = undef,
-  String $asm_snmp_password                                       = lookup('oradb::default::password'),
-  String $db_snmp_password                                        = lookup('oradb::default::password'),
-  String $asm_diskgroup                                           = lookup('oradb::database::asm_diskgroup'),
-  Optional[String] $recovery_diskgroup                            = undef,
-  Optional[String] $cluster_nodes                                 = undef, # comma separated list with at first the local and at second the remode host e.g. "racnode1,racnode2"
-  Boolean $container_database                                     = false, # 12.1 feature for pluggable database
-  String $puppet_download_mnt_point                               = lookup('oradb::module_mountpoint'),
-  Boolean $automatic_memory_management                            = true, # for 12.2 , choose false when more than 4gb memory
-  Optional[Integer] $timeout                                      = 0,
+define oradb::database (
+  String $oracle_base                                                   = undef,
+  String $oracle_home                                                   = undef,
+  Enum['11.2', '12.1', '12.2', '18.3', '19.1', '19.2', '19.3'] $version = lookup('oradb::version'),
+  String $user                                                          = lookup('oradb::user'),
+  String $group                                                         = lookup('oradb::group'),
+  String $download_dir                                                  = lookup('oradb::download_dir'),
+  Enum['create', 'delete'] $action                                      = lookup('oradb::database::action'),
+  Optional[String] $template                                            = undef,
+  Optional[String] $template_seeded                                     = undef,
+  Optional[Hash] $template_variables                                    = undef, # for dbt template
+  String $db_name                                                       = lookup('oradb::database_name'),
+  Optional[String] $db_domain                                           = undef,
+  Integer $db_port                                                      = lookup('oradb::listener_port'),
+  String $sys_password                                                  = lookup('oradb::default::password'),
+  String $system_password                                               = lookup('oradb::default::password'),
+  Optional[String] $data_file_destination                               = undef,
+  Optional[String] $recovery_area_destination                           = undef,
+  String $character_set                                                 = lookup('oradb::database::character_set'),
+  String $nationalcharacter_set                                         = lookup('oradb::database::nationalcharacter_set'),
+  Optional[Hash] $init_params                                           = undef,
+  String $sample_schema                                                 = lookup('oradb::database::sample_schema'),
+  Integer $memory_percentage                                            = lookup('oradb::database::memory_percentage'),
+  Integer $memory_total                                                 = lookup('oradb::database::memory_total'),
+  Enum['MULTIPURPOSE', 'DATA_WAREHOUSING', 'OLTP'] $database_type       = lookup('oradb::database::database_type'),
+  Enum['NONE', 'CENTRAL', 'LOCAL', 'ALL'] $em_configuration             = lookup('oradb::database::em_configuration'),
+  Optional[Enum['FS', 'CFS', 'ASM']] $storage_type                      = undef,
+  String $asm_snmp_password                                             = lookup('oradb::default::password'),
+  String $db_snmp_password                                              = lookup('oradb::default::password'),
+  String $asm_diskgroup                                                 = lookup('oradb::database::asm_diskgroup'),
+  Optional[String] $recovery_diskgroup                                  = undef,
+  Optional[String] $cluster_nodes                                       = undef, # comma separated list with at first the local and at second the remode host e.g. "racnode1,racnode2"
+  Boolean $container_database                                           = false, # 12.1 feature for pluggable database
+  String $puppet_download_mnt_point                                     = lookup('oradb::module_mountpoint'),
+  Boolean $automatic_memory_management                                  = true, # for 12.2 , choose false when more than 4gb memory
+  Optional[Integer] $timeout                                            = 0,
 )
-{
+  {
 
-  $supported_db_kernels = join( lookup('oradb::kernels'), '|')
-  if ( $::kernel in $supported_db_kernels == false){
-    fail("Unrecognized operating system, please use it on a ${supported_db_kernels} host")
-  }
+    $supported_db_kernels = join(lookup('oradb::kernels'), '|')
+    if ( $::kernel in $supported_db_kernels == false) {
+      fail("Unrecognized operating system, please use it on a ${supported_db_kernels} host")
+    }
 
-  if $action == 'create' {
-    $operation_type = 'createDatabase'
-  } elsif $action == 'delete' {
-    $operation_type = 'deleteDatabase'
-  } else {
-    fail('Unrecognized database action')
-  }
-
-  if ( $database_type in lookup('oradb::instance_types') == false ) {
-    fail('Unrecognized database_type')
-  }
-
-  if ( $em_configuration in lookup('oradb::instance_em_configuration') == false) {
-    fail('Unrecognized emConfiguration')
-  }
-
-  if ( $storage_type != undef and  $storage_type in lookup('oradb::instance_storage_type') == false ) {
-    fail('Unrecognized storageType')
-  }
-
-  if ( $version == '11.2' and $container_database == true ){
-    fail('container or pluggable database is not supported on version 11.2')
-  }
-
-#  if ( $version >= '12.2' and $container_database == false ){
-#    fail('version 12.2 or higher requires container_database = true')
-#  }
-
-  $exec_path = lookup('oradb::exec_path')
-  $user_base = lookup('oradb::user_base_dir')
-  $user_home = "${user_base}/${user}"
-
-  if (is_hash($init_params) or is_string($init_params)) {
-    if is_hash($init_params) {
-      $init_params_array = sort(join_keys_to_values($init_params, '='))
-      $sanitized_init_params = join($init_params_array,',')
+    if $action == 'create' {
+      $operation_type = 'createDatabase'
+    } elsif $action == 'delete' {
+      $operation_type = 'deleteDatabase'
     } else {
-      $sanitized_init_params = $init_params
+      fail('Unrecognized database action')
     }
-  } else {
-    fail 'init_params only supports a String or a Hash as value type'
-  }
 
-  $sanitized_title = regsubst($title, '[^a-zA-Z0-9.-]', '_', 'G')
-
-  if $db_domain {
-    $globaldb_name = "${db_name}.${db_domain}"
-  } else {
-    $globaldb_name = $db_name
-  }
-
-  if ! defined(File["${download_dir}/database_${sanitized_title}.rsp"]) {
-    file { "${download_dir}/database_${sanitized_title}.rsp":
-      ensure  => present,
-      content => epp("oradb/dbca_${version}.rsp.epp",
-                    { 'operationType'               => $operation_type,
-                      'globaldb_name'               => $globaldb_name,
-                      'db_name'                     => $db_name,
-                      'cluster_nodes'               => $cluster_nodes,
-                      'sys_password'                => $sys_password,
-                      'system_password'             => $system_password,
-                      'em_configuration'            => $em_configuration,
-                      'db_snmp_password'            => $db_snmp_password,
-                      'data_file_destination'       => $data_file_destination,
-                      'recovery_area_destination'   => $recovery_area_destination,
-                      'storage_type'                => $storage_type,
-                      'asm_diskgroup'               => $asm_diskgroup,
-                      'asm_snmp_password'           => $asm_snmp_password,
-                      'recovery_diskgroup'          => $recovery_diskgroup,
-                      'character_set'               => $character_set,
-                      'nationalcharacter_set'       => $nationalcharacter_set,
-                      'sanitizedInitParams'         => $sanitized_init_params,
-                      'sample_schema'               => $sample_schema,
-                      'memory_percentage'           => $memory_percentage,
-                      'database_type'               => $database_type,
-                      'memory_total'                => $memory_total,
-                      'db_port'                     => $db_port,
-                      'container_database'          => $container_database,
-                      'automatic_memory_management' => $automatic_memory_management }),
-      mode    => '0770',
-      owner   => $user,
-      group   => $group,
-      before  => Exec["oracle database ${title}"],
+    if ( $database_type in lookup('oradb::instance_types') == false ) {
+      fail('Unrecognized database_type')
     }
-  }
 
-  if ( $template_seeded ) {
-    $templatename = "${oracle_home}/assistants/dbca/templates/${template_seeded}.dbc"
-  } elsif ( $template ) {
-    $templatename = "${download_dir}/${template}_${sanitized_title}.dbt"
-    file { $templatename:
-      ensure  => present,
-      content => template("${puppet_download_mnt_point}/${template}.dbt.erb"),
-      mode    => '0775',
-      owner   => $user,
-      group   => $group,
-      before  => Exec["oracle database ${title}"],
+    if ( $em_configuration in lookup('oradb::instance_em_configuration') == false) {
+      fail('Unrecognized emConfiguration')
     }
-  } else {
-    $templatename = undef
-  }
 
-  if ($version == '12.2' and $templatename != undef and $storage_type != undef and $data_file_destination == undef ) {
-    fail('data_file_destination is required on version 12.2 when storage_type and template are defined')
-  }
+    if ( $storage_type != undef and  $storage_type in lookup('oradb::instance_storage_type') == false ) {
+      fail('Unrecognized storageType')
+    }
 
-  $elevation_prefix = "su - ${user} -c \"/bin/ksh -c \\\""
-  $elevation_suffix = "\\\"\""
+    if ( $version == '11.2' and $container_database == true ) {
+      fail('container or pluggable database is not supported on version 11.2')
+    }
 
-  if $action == 'create' {
-    if ( $templatename ) {
+    #  if ( $version >= '12.2' and $container_database == false ){
+    #    fail('version 12.2 or higher requires container_database = true')
+    #  }
 
-      if ( $template_variables != undef ) {
-        file { "${download_dir}/vars_${sanitized_title}.txt":
-          ensure  => present,
-          content => epp('oradb/dbca_vars.epp', { 'vars' => $template_variables }),
-          mode    => '0775',
-          owner   => $user,
-          group   => $group,
-          before  => Exec["oracle database ${title}"],
+    $exec_path = lookup('oradb::exec_path')
+    $user_base = lookup('oradb::user_base_dir')
+    $user_home = "${user_base}/${user}"
+
+    if (is_hash($init_params) or is_string($init_params)) {
+      if is_hash($init_params) {
+        $init_params_array = sort(join_keys_to_values($init_params, '='))
+        $sanitized_init_params = join($init_params_array, ',')
+      } else {
+        $sanitized_init_params = $init_params
+      }
+    } else {
+      fail 'init_params only supports a String or a Hash as value type'
+    }
+
+    $sanitized_title = regsubst($title, '[^a-zA-Z0-9.-]', '_', 'G')
+
+    if $db_domain {
+      $globaldb_name = "${db_name}.${db_domain}"
+    } else {
+      $globaldb_name = $db_name
+    }
+
+    if !defined(File["${download_dir}/database_${sanitized_title}.rsp"]) {
+      file { "${download_dir}/database_${sanitized_title}.rsp":
+        ensure  => present,
+        content => epp("oradb/dbca_${version}.rsp.epp",
+          { 'operationType'               => $operation_type,
+            'globaldb_name'               => $globaldb_name,
+            'db_name'                     => $db_name,
+            'cluster_nodes'               => $cluster_nodes,
+            'sys_password'                => $sys_password,
+            'system_password'             => $system_password,
+            'em_configuration'            => $em_configuration,
+            'db_snmp_password'            => $db_snmp_password,
+            'data_file_destination'       => $data_file_destination,
+            'recovery_area_destination'   => $recovery_area_destination,
+            'storage_type'                => $storage_type,
+            'asm_diskgroup'               => $asm_diskgroup,
+            'asm_snmp_password'           => $asm_snmp_password,
+            'recovery_diskgroup'          => $recovery_diskgroup,
+            'character_set'               => $character_set,
+            'nationalcharacter_set'       => $nationalcharacter_set,
+            'sanitizedInitParams'         => $sanitized_init_params,
+            'sample_schema'               => $sample_schema,
+            'memory_percentage'           => $memory_percentage,
+            'database_type'               => $database_type,
+            'memory_total'                => $memory_total,
+            'db_port'                     => $db_port,
+            'container_database'          => $container_database,
+            'automatic_memory_management' => $automatic_memory_management }),
+        mode    => '0770',
+        owner   => $user,
+        group   => $group,
+        before  => Exec["oracle database ${title}"],
+      }
+    }
+
+    if ( $template_seeded ) {
+      $templatename = "${oracle_home}/assistants/dbca/templates/${template_seeded}.dbc"
+    } elsif ( $template ) {
+      $templatename = "${download_dir}/${template}_${sanitized_title}.dbt"
+      file { $templatename:
+        ensure  => present,
+        content => template("${puppet_download_mnt_point}/${template}.dbt.erb"),
+        mode    => '0775',
+        owner   => $user,
+        group   => $group,
+        before  => Exec["oracle database ${title}"],
+      }
+    } else {
+      $templatename = undef
+    }
+
+    if ($version == '12.2' and $templatename != undef and $storage_type != undef and $data_file_destination == undef ) {
+      fail('data_file_destination is required on version 12.2 when storage_type and template are defined')
+    }
+
+    $elevation_prefix = "su - ${user} -c \"/bin/ksh -c \\\""
+    $elevation_suffix = "\\\"\""
+
+    if $action == 'create' {
+      if ( $templatename ) {
+
+        if ( $template_variables != undef ) {
+          file { "${download_dir}/vars_${sanitized_title}.txt":
+            ensure  => present,
+            content => epp('oradb/dbca_vars.epp', { 'vars' => $template_variables }),
+            mode    => '0775',
+            owner   => $user,
+            group   => $group,
+            before  => Exec["oracle database ${title}"],
+          }
+        }
+
+        if ( $version == '11.2' or $container_database == false ) {
+          $command_pre = "${elevation_prefix}${oracle_home}/bin/dbca -silent -createDatabase -templateName ${templatename} -gdbname ${globaldb_name} -sid ${db_name} -characterSet ${character_set}
+             -responseFile NO_VALUE -sysPassword ${sys_password} -systemPassword ${system_password} -dbsnmpPassword ${db_snmp_password} -asmsnmpPassword ${asm_snmp_password} -emConfiguration ${
+            em_configuration} "
+        } else {
+          $command_pre = "${elevation_prefix}${oracle_home}/bin/dbca -silent -createDatabase -templateName ${templatename} -gdbname ${globaldb_name} -sid ${db_name} -characterSet ${character_set}
+             -createAsContainerDatabase ${container_database} -responseFile NO_VALUE -sysPassword ${sys_password} -systemPassword ${system_password} -dbsnmpPassword ${db_snmp_password}
+             -asmsnmpPassword ${asm_snmp_password} -emConfiguration ${em_configuration} "
+        }
+
+        if ( $template_variables != undef) {
+          $command_var = " -variablesFile ${download_dir}/vars_${sanitized_title}.txt"
+        } else {
+          $command_var = ''
+        }
+
+        if ( $data_file_destination != undef) {
+          $command_data_file = " -datafileDestination ${data_file_destination}"
+        } else {
+          $command_data_file = ''
+        }
+
+        if ( $init_params != undef) {
+          $command_init = " -initParams ${sanitized_init_params}"
+        } else {
+          $command_init = ''
+        }
+
+        if ( $cluster_nodes != undef) {
+          $command_nodes = " -nodelist ${cluster_nodes}"
+        } else {
+          $command_nodes = ''
+        }
+
+        if ( $storage_type != undef) {
+          $command_storage = " -storageType ${storage_type}"
+        } else {
+          $command_storage = ''
+        }
+
+        $command = "${command_pre} ${command_storage} ${command_data_file} ${command_var} ${command_init} ${command_nodes} ${elevation_suffix}"
+
+      } else {
+        if ( $version in ['12.2', '18.3', '19.1', '19.2', '19.3']) {
+          $command = "${elevation_prefix}${oracle_home}/bin/dbca -silent -createDatabase -responseFile ${download_dir}/database_${sanitized_title}.rsp${elevation_suffix}"
+        } else {
+          $command = "${elevation_prefix}${oracle_home}/bin/dbca -silent -responseFile ${download_dir}/database_${sanitized_title}.rsp${elevation_suffix}"
         }
       }
 
-      if ( $version == '11.2' or $container_database == false ) {
-        $command_pre = "${elevation_prefix}${oracle_home}/bin/dbca -silent -createDatabase -templateName ${templatename} -gdbname ${globaldb_name} -sid ${db_name} -characterSet ${character_set} -responseFile NO_VALUE -sysPassword ${sys_password} -systemPassword ${system_password} -dbsnmpPassword ${db_snmp_password} -asmsnmpPassword ${asm_snmp_password} -emConfiguration ${em_configuration} "
+      exec { "oracle database ${title}":
+        command     => $command,
+        creates     => "${oracle_base}/admin/${db_name}",
+        timeout     => $timeout,
+        path        => $exec_path,
+        user        => 'root',
+        group       => 'root',
+        cwd         => $oracle_base,
+        environment => ["USER=${user}", ],
+        logoutput   => true,
+      }
+    } elsif $action == 'delete' {
+      if ( $version in ['12.2', '18.3', '19.1', '19.2', '19.3']) {
+        $command = "${oracle_home}/bin/dbca -silent -deleteDatabase -sourceDB ${db_name} -sysDBAUserName sys -sysDBAPassword ${sys_password}"
       } else {
-        $command_pre = "${elevation_prefix}${oracle_home}/bin/dbca -silent -createDatabase -templateName ${templatename} -gdbname ${globaldb_name} -sid ${db_name} -characterSet ${character_set} -createAsContainerDatabase ${container_database} -responseFile NO_VALUE -sysPassword ${sys_password} -systemPassword ${system_password} -dbsnmpPassword ${db_snmp_password} -asmsnmpPassword ${asm_snmp_password} -emConfiguration ${em_configuration} "
+        $command = "${oracle_home}/bin/dbca -silent -responseFile ${download_dir}/database_${sanitized_title}.rsp"
       }
 
-      if ( $template_variables != undef) {
-        $command_var = " -variablesFile ${download_dir}/vars_${sanitized_title}.txt"
-      } else {
-        $command_var = ''
+      exec { "oracle database ${title}":
+        command     => $command,
+        onlyif      => "ls ${oracle_base}/admin/${db_name}",
+        timeout     => $timeout,
+        path        => $exec_path,
+        user        => $user,
+        group       => $group,
+        cwd         => $oracle_base,
+        environment => ["USER=${user}", ],
+        logoutput   => true,
       }
-
-      if ( $data_file_destination != undef) {
-        $command_data_file = " -datafileDestination ${data_file_destination}"
-      } else {
-        $command_data_file = ''
-      }
-
-      if ( $init_params != undef) {
-        $command_init = " -initParams ${sanitized_init_params}"
-      } else {
-        $command_init = ''
-      }
-
-      if ( $cluster_nodes != undef) {
-        $command_nodes = " -nodelist ${cluster_nodes}"
-      } else {
-        $command_nodes = ''
-      }
-
-      if ( $storage_type != undef) {
-        $command_storage = " -storageType ${storage_type}"
-      } else {
-        $command_storage = ''
-      }
-
-      $command = "${command_pre} ${command_storage} ${command_data_file} ${command_var} ${command_init} ${command_nodes} ${elevation_suffix}"
-
-    } else {
-      if ( $version in ['12.2','18.3']) {
-        $command = "${elevation_prefix}${oracle_home}/bin/dbca -silent -createDatabase -responseFile ${download_dir}/database_${sanitized_title}.rsp${elevation_suffix}"
-      } else {
-        $command = "${elevation_prefix}${oracle_home}/bin/dbca -silent -responseFile ${download_dir}/database_${sanitized_title}.rsp${elevation_suffix}"
-      }
-    }
-
-    exec { "oracle database ${title}":
-      command     => $command,
-      creates     => "${oracle_base}/admin/${db_name}",
-      timeout     => $timeout,
-      path        => $exec_path,
-      user        => 'root',
-      group       => 'root',
-      cwd         => $oracle_base,
-      environment => ["USER=${user}",],
-      logoutput   => true,
-    }
-  } elsif $action == 'delete' {
-    if ( $version in ['12.2','18.3']) {
-      $command = "${oracle_home}/bin/dbca -silent -deleteDatabase -sourceDB ${db_name} -sysDBAUserName sys -sysDBAPassword ${sys_password}"
-    } else {
-      $command = "${oracle_home}/bin/dbca -silent -responseFile ${download_dir}/database_${sanitized_title}.rsp"
-    }
-
-    exec { "oracle database ${title}":
-      command     => $command,
-      onlyif      => "ls ${oracle_base}/admin/${db_name}",
-      timeout     => $timeout,
-      path        => $exec_path,
-      user        => $user,
-      group       => $group,
-      cwd         => $oracle_base,
-      environment => ["USER=${user}",],
-      logoutput   => true,
     }
   }
-}
