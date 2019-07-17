@@ -266,7 +266,7 @@ define oradb::installdb (
 
       exec { "install oracle database ${title}":
         command     => $command,
-        # creates     => "${oracle_home}/dbs",
+        creates     => "${oracle_home}/bin",
         environment => ["USER=${user}", "LOGNAME=${user}"],
         timeout     => 0,
         returns     => [6, 0],

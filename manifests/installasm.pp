@@ -315,7 +315,7 @@ define oradb::installasm (
 
       exec { "install oracle grid ${title}":
         command     => $command,
-        # creates     => "${grid_home}/bin",
+        creates     => "${grid_home}/bin",
         environment => ["USER=${user}", "LOGNAME=${user}"],
         timeout     => 0,
         returns     => [6, 0],
